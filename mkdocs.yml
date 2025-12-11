@@ -1,0 +1,42 @@
+site_name: CUDAG Documentation
+site_description: Auto-generated technical documentation
+site_url: https://cudag.dev
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.expand
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+
+plugins:
+  - search
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Projects:
+      - CUDAG Framework: generators-cudag/index.md
+      - Annotator: annotator/index.md
+      - Desktop Generator: generators-desktop-generator/index.md
+      - Dataset Viewer: dataset-viewer/index.md
+      - Mole Trainer: mole-trainer/index.md
+      - Mole Trainer Server: mole-trainer-server/index.md
+      - Tensorboard Server: tensorboard-server/index.md
+      - Visualizer: visualizer/index.md
