@@ -1,55 +1,65 @@
-# ClaimHawk Platform Documentation
+# CUDAG - Computer Use Dataset Augmented Generation
 
-Internal technical documentation for the ClaimHawk computer use digital labor platform.
+A framework for generating synthetic training data for vision-language models
+that perform computer use tasks.
 
-## Platform Overview
+## Overview
 
-ClaimHawk uses a **Mixture of Experts (MoE)** architecture where a router model
-classifies screenshots and routes them to specialized expert LoRA adapters trained
-on specific screen types.
+CUDAG provides tools to create high-quality synthetic datasets for training
+AI agents to interact with graphical user interfaces. The framework generates
+screenshots paired with action labels, enabling supervised learning of
+computer use capabilities.
 
-### Architecture
+### Key Features
 
+- **Synthetic Screen Generation** - Procedurally generate realistic UI screenshots
+- **Action Annotation** - Automatic labeling of clickable regions and interactions
+- **Coordinate System** - Resolution-independent coordinate normalization
+- **Extensible Framework** - Easy to add new screen types and generators
+
+## Quick Start
+
+```bash
+# Install CUDAG
+pip install cudag
+
+# Create a new generator project
+cudag new my-generator
+
+# Generate a dataset
+cd my-generator
+python generator.py
 ```
-Screenshot → Router → Expert Selection → LoRA Adapter → Action Prediction
-```
 
-The platform consists of:
+## Projects
 
-- **Screen Generators** - Synthetic data generation for each screen type
-- **Training Infrastructure** - LoRA fine-tuning and MoE router training
-- **Evaluation Environment** - RL-based agent evaluation on workflows
-- **Supporting Tools** - Dataset viewing, annotation, and debugging
+| Project | Description |
+|---------|-------------|
+| [CUDAG Framework](generators-cudag/index.md) | Core framework and utilities |
+| [Annotator](annotator/index.md) | Visual annotation tool |
+| [Desktop Generator](generators-desktop-generator/index.md) | Example desktop screen generator |
 
-## Quick Links
+## Coordinate System
 
-| Category | Description |
-|----------|-------------|
-| [RL Projects](oracle-agent/index.md) | Reinforcement learning agents and evaluation |
-| [Screen Generators](generators-calendar-generator/index.md) | Synthetic training data generation |
-| [Training](lora-trainer/index.md) | LoRA and MoE training infrastructure |
-| [Tools](dataset-viewer/index.md) | Development and debugging tools |
-
-## Key Concepts
-
-### Coordinate System
 All coordinates use **Resolution Units (RU)** normalized to [0, 1000]:
+
 ```
 normalized = (pixel / image_dimension) * 1000
 ```
 
-### Tool Call Format
-Training data uses the `<tool_call>` format:
+This ensures coordinates are resolution-independent and can be scaled to any
+screen size.
+
+## Tool Call Format
+
+Generated datasets use a standardized tool call format:
+
 ```json
 <tool_call>
 {"name": "computer_use", "arguments": {"action": "left_click", "coordinate": [500, 300]}}
 </tool_call>
 ```
 
-### Dataset Naming
-Uses `--` delimiter: `{expert}--{researcher}--{timestamp}`
-
 ---
 
-<small>Auto-generated documentation. 25 projects
-(8 public, 15 private), 607 source files.</small>
+*CUDAG is an open-source project for advancing computer use AI research.*
