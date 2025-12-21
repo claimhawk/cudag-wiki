@@ -1,0 +1,1 @@
+*Error: Lookup failed for Cls 'DocGenerator' from the 'wiki-agent' app: App 'wiki-agent' not found in environment 'main'.*
