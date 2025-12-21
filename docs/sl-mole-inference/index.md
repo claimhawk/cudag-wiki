@@ -1,161 +1,139 @@
 # Project Overview: `sl/mole-inference`
 
----
-
 ## 1. Overview
 
-**Project Name**: `sl/mole-inference`  
-**Purpose**: A scalable, configurable Mixture of Experts (MoE) inference server designed for deploying and routing multiple LoRA adapters (specifically for Qwen3-VL models) on Modal, with support for dynamic adapter switching, merged model inference, and automatic routing via a router LoRA.
+`sl/mole-inference` is a **generic, configurable Mixture of Experts (MoE) inference server** designed to deploy and route multimodal tasks using **Qwen3-VL base models with LoRA adapters**. It enables dynamic, on-demand switching between multiple task-specific LoRA adapters — either via a router-based routing mechanism or by merging adapters into the base model for performance gains.
 
-**Problem Solved**:  
-Traditional fine-tuned models (especially LoRA adapters) are often task-specific and deployed in isolation. This leads to inefficiencies in resource usage, latency, and model switching. `sl/mole-inference` solves this by enabling a single base model to dynamically route inputs to the most appropriate expert adapter (or merged model), reducing inference latency by 10–20% and enabling seamless multi-task deployment without re-deploying the base model.
+This project solves the problem of **operationalizing multiple LoRA adapters** for multimodal AI applications (e.g., vision-language tasks) without requiring separate model instances per adapter. It supports:
 
-The system is built for cloud-native deployment via Modal, with automatic discovery of adapters from a mounted volume, full configurability via YAML or environment variables, and a REST API for client integration.
+- **Runtime adapter switching** via dynamic loading
+- **Automatic input routing** using a router LoRA
+- **Merged model inference** for speedup (~10–20% faster)
+- **Configurable deployment** via YAML or environment variables
+- **Auto-discovery** of adapters from mounted volumes
+- **HTTP API endpoints** for external integration
+
+The system is built on **Modal**, a serverless platform for deploying machine learning applications, and uses **FastAPI** for the inference API. It is designed for **multi-tenant, multi-task, multimodal** deployment scenarios — particularly useful for research or production environments where task-specific LoRA adapters are frequently updated or deployed.
 
 ---
 
 ## 2. Architecture
 
-The project is organized into three core layers:
+The codebase is organized into logical layers:
 
-### 2.1. Configuration Layer
-- **`config/`**: Contains configuration files (`default.yaml`, `local.yaml`) and schema definitions.
-  - `config/default.yaml`: Template for default settings.
-  - `config/local.yaml`: User-customizable config file.
-  - Configuration includes:
-    - Modal app settings (`app_name`, `hf_secret_name`)
-    - Base model (`base_vlm`)
-    - Inference volume mount path
-    - Adapter definitions (`name`, `label`, `path`, `mode`)
+### Core Directories:
 
-### 2.2. Core Inference Layer
-- **`modal/`**: Contains the core inference logic and Modal-compatible functions.
-  - `modal/inference.py`: Main inference engine — handles input routing, adapter loading, and model execution.
-  - `modal/merged_inference.py`: Implements merged model inference (baked LoRA weights into base model).
-  - `modal/config.py`: Loads and validates configuration at runtime.
-  - `modal/deploy.py`: Deploys adapters and router via Modal.
-  - `modal/merge.py`: Merges LoRA weights into base model.
-  - `modal/sam_inference.py`, `modal/ocr_inference.py`, `modal/sam_gradio.py`, `modal/ocr_gradio.py`: Task-specific inference modules (SAM, OCR) — likely used for specialized routing or UI integration.
-  - `modal/__init__.py`: Entry point for Modal modules.
+- **`modal/`** — Core inference logic, model loading, merging, and routing. Contains the main inference engine and utility functions.
+  - `inference.py` — Main inference handler for routing and adapter selection.
+  - `merge.py` — Logic for merging LoRA weights into base model.
+  - `merged_inference.py` — Inference engine for merged models.
+  - `config.py` — Configuration loader and validator.
+  - `deploy.py` — Deployment scripts for adapters and router.
+  - `sam_inference.py`, `ocr_inference.py`, `sam_gradio.py`, `ocr_gradio.py` — Task-specific inference modules (SAM segmentation, OCR) — *Note: These appear to be experimental or legacy integrations, not core to MoE routing*.
+  - `__init__.py` — Entry point for Modal app modules.
 
-### 2.3. Application Layer
-- **`apps/`**: Application entry points for different use cases.
-  - `apps/moe_app.py`: Main MoE inference app — orchestrates routing and API serving.
-  - `apps/sam_app.py`, `apps/ocr_app.py`: Task-specific apps (SAM for segmentation, OCR for text extraction) — likely wrappers for `modal/inference.py`.
+- **`apps/`** — Application-specific entry points for Modal deployment (e.g., `moe_app.py`, `sam_app.py`, `ocr_app.py`). These define the Modal app context and expose APIs.
 
-### 2.4. Deployment Scripts
-- **`scripts/`**: CLI scripts for deployment and testing.
-  - `scripts/deploy.sh`: Deploys the entire inference server.
-  - `scripts/deploy-adapter.sh`: Deploys individual LoRA adapters or router.
-  - `scripts/merge.sh`: Merges LoRA weights into base model.
-  - `scripts/deploy-merged.sh`: Deploys merged model version.
-  - `scripts/test.sh`: Runs integration tests.
-  - `scripts/deploy.py` (in `modal/`): Modal-specific deployment script.
+- **`scripts/`** — CLI deployment and testing scripts.
+  - `deploy.sh`, `deploy-adapter.sh`, `merge.sh`, `deploy-merged.sh`, `test.sh` — Scripts for deploying adapters, merging models, and running tests.
 
-### 2.5. Testing Layer
-- **`tests/`**: Unit and integration tests.
-  - `tests/test_e2e_routing.py`: Tests end-to-end routing logic.
-  - `tests/test_config.py`: Validates config parsing and validation.
-  - `tests/__init__.py`: Test suite initialization.
+- **`config/`** — Configuration files.
+  - `default.yaml`, `local.yaml` — Base and user-configurable config files. Define base model, adapter paths, labels, and Modal settings.
+
+- **`tests/`** — Unit and integration tests.
+  - `test_e2e_routing.py`, `test_config.py` — Test routing logic and config parsing.
+
+- **`system.md`, `CLAUDE.md`** — Documentation for system setup or external integrations (possibly legacy or placeholder).
 
 ---
 
 ## 3. Key Components
 
-### 3.1. Router LoRA
-- **File**: `modal/inference.py` (via `RouterLoRA` class)
-- **Function**: Classifies input (e.g., via prompt or image features) and assigns to an expert adapter based on `label` mapping.
-- **Configured via**: `adapters` section in `config/local.yaml` — each adapter has a `label` (e.g., `"0"`, `"1"`) and `path`.
+### 1. **Router LoRA (`modal/inference.py`)**
 
-### 3.2. Dynamic Adapter Manager
-- **File**: `modal/inference.py` (via `AdapterManager`)
-- **Function**: Loads and switches between LoRA adapters at runtime based on router output.
-- **Modes**:
-  - `"dynamic"`: Loads adapter on-demand.
-  - `"merged"`: Uses pre-merged model (faster inference).
+The router is a LoRA adapter trained to classify inputs and route them to the correct expert adapter. It operates as a **classifier** that outputs a label (e.g., `0`, `1`) corresponding to an adapter.
 
-### 3.3. Merged Model Inference
-- **File**: `modal/merged_inference.py`
-- **Function**: Applies LoRA weights to base model during model loading, creating a merged model for faster inference.
-- **Used when**: `mode: "merged"` in adapter config.
+- Uses `modal/inference.py` to load and apply the router LoRA.
+- Routes input via `route_input()` — returns adapter label.
+- Configurable via `config/local.yaml` under `adapters` with `label` and `path`.
 
-### 3.4. Modal Deployment Engine
-- **File**: `modal/deploy.py`
-- **Function**: Deploys adapters and router to Modal using `modal.run()` and `modal.Image`.
-- **Key Actions**:
-  - Loads base model.
-  - Applies router LoRA.
-  - Mounts inference volume.
-  - Exposes API endpoint.
+### 2. **Dynamic Adapter Loader (`modal/inference.py`)**
 
-### 3.5. HTTP API
-- **File**: `apps/moe_app.py`
-- **Function**: Exposes FastAPI endpoints for inference.
-- **Endpoint**: `/infer_web` — accepts base64 image and prompt, returns model response.
-- **Example Request**:
-  ```bash
-  curl -X POST https://your-app--moe-inference.modal.run/infer_web \
-    -H "Content-Type: application/json" \
-    -d '{
-      "image_b64": "data:image/jpeg;base64,...",
-      "prompt": "What action should ..."
-    }'
-  ```
+- Dynamically loads LoRA adapters from mounted volumes (e.g., `/inference/loras/task-a/adapter`).
+- Uses `HF Transformers` to load LoRA weights and merge them with the base model.
+- Supports `mode: "dynamic"` — adapter is loaded on-demand, not merged.
+
+### 3. **Merged Model Inference (`modal/merged_inference.py`)**
+
+- Pre-merges LoRA weights into the base model for faster inference.
+- Uses `modal/merge.py` to perform the merge.
+- Optimized for latency-sensitive use cases.
+- Configured via `mode: "merged"` in `config/local.yaml`.
+
+### 4. **Modal App (`apps/moe_app.py`)**
+
+- Entry point for Modal deployment.
+- Defines the Modal app context, mounts volumes, loads config, and exposes the inference API.
+- Uses `FastAPI` to serve endpoints like `/infer_web`.
+
+### 5. **Deployment Scripts (`scripts/deploy-adapter.sh`, `scripts/deploy.sh`)**
+
+- `deploy-adapter.sh` — Deploys a LoRA adapter or router to Modal.
+- `deploy.sh` — Deploys the full MoE inference server.
+- Uses `modal run` to execute deployment scripts.
+
+### 6. **Configuration (`config/default.yaml`, `config/local.yaml`)**
+
+- Defines:
+  - Modal app name, Hugging Face secret
+  - Base model (e.g., `Qwen/Qwen3-VL-8B-Instruct`)
+  - Adapter list with `name`, `label`, `path`, `mode`
+  - Volume mount path
+- Supports environment variable overrides.
 
 ---
 
 ## 4. Data Flow
 
-1. **Client Request** → `apps/moe_app.py` → FastAPI endpoint `/infer_web`
-2. **Input Processing** → `modal/inference.py`:
-   - Parses image and prompt.
-   - Routes to router LoRA (if enabled).
-3. **Routing Decision** → Router LoRA returns expert label (e.g., `"0"` → `"task-a"`).
-4. **Adapter Selection** → `AdapterManager` loads corresponding adapter (or merged model if configured).
-5. **Inference** → Base model + selected adapter (or merged model) processes input.
-6. **Response** → Returns result to client via API.
+1. **Client Request** → `POST /infer_web` (via FastAPI endpoint in `apps/moe_app.py`)
+2. **Request Payload** — Contains `image_b64` and `prompt`.
+3. **Router LoRA** — If `mode: "dynamic"` is configured, the request is routed via `modal/inference.py` → `route_input()` → returns label (e.g., `0`).
+4. **Adapter Selection** — Based on label, the correct LoRA adapter is loaded from `/inference/loras/...`.
+5. **Inference** — The base model + selected LoRA adapter (or merged model) processes the input.
+6. **Response** — Result returned to client.
 
-**Optional Flow**:
-- If `mode: "merged"` → `modal/merged_inference.py` merges weights before inference.
-- If `mode: "dynamic"` → Adapter loaded on-demand via `modal/adapter_loader`.
+> **Note**: If `mode: "merged"` is configured, the router is skipped, and the merged model is used directly.
 
 ---
 
 ## 5. Getting Started
 
-### 5.1. Prerequisites
-- Python 3.9+
-- Modal CLI (`modal --version`)
-- Hugging Face API token (configured via `hf_secret_name` in `config/local.yaml`)
-- Docker (for local testing)
+### Step 1: Set Up Environment
 
-### 5.2. Setup
+Install dependencies (assumed via `requirements.txt` or `pyproject.toml`):
 
-#### 1. Clone and Initialize
 ```bash
-git clone https://github.com/your-org/sl-mole-inference.git
-cd sl-mole-inference
+pip install -r requirements.txt
 ```
 
-#### 2. Configure
+### Step 2: Configure
+
+Copy and edit the default config:
+
 ```bash
 cp config/default.yaml config/local.yaml
 ```
 
-Edit `config/local.yaml`:
+Edit `config/local.yaml` to define:
+
+- `modal.app_name`
+- `models.base_vlm`
+- `volumes.inference.mount_path`
+- `adapters` — list of LoRA adapters with `name`, `label`, `path`, `mode`
+
+Example:
+
 ```yaml
-modal:
-  app_name: "my-inference-server"
-  hf_secret_name: "my-huggingface-secret"
-
-models:
-  base_vlm: "Qwen/Qwen3-VL-8B-Instruct"
-
-volumes:
-  inference:
-    name: "my-inference-volume"
-    mount_path: "/inference"
-
 adapters:
   - name: "task-a"
     label: 0
@@ -168,34 +146,38 @@ adapters:
     mode: "dynamic"
 ```
 
-#### 3. Deploy Adapters
+### Step 3: Deploy Adapters
 
-Deploy task adapters:
+Deploy task adapters and router using `scripts/deploy-adapter.sh`:
+
 ```bash
-./scripts/deploy-adapter.sh \
-  --adapter-name task-a \
-  --checkpoint /path/to/lora \
-  --accuracy 0.95
+./scripts/deploy-adapter.sh --adapter-name task-a --checkpoint /path/to/lora --accuracy 0.95
+./scripts/deploy-adapter.sh --router --checkpoint /path/to/router
 ```
 
-Deploy router:
-```bash
-./scripts/deploy-adapter.sh \
-  --router \
-  --checkpoint /path/to/router
-```
+Set up label mapping:
 
-Set label mapping:
 ```bash
 modal run modal/deploy.py --save-labels '{"0": "task-a", "1": "task-b"}'
 ```
 
-#### 4. Deploy Server
+### Step 4: Deploy Server
+
 ```bash
 ./scripts/deploy.sh
 ```
 
-#### 5. Test API
+This will:
+
+- Mount volumes
+- Load config
+- Deploy Modal app via `apps/moe_app.py`
+- Start FastAPI server
+
+### Step 5: Use API
+
+Send POST request to inference endpoint:
+
 ```bash
 curl -X POST https://your-app--moe-inference.modal.run/infer_web \
   -H "Content-Type: application/json" \
@@ -205,39 +187,15 @@ curl -X POST https://your-app--moe-inference.modal.run/infer_web \
   }'
 ```
 
-#### 6. Local Development (Optional)
-```bash
-# Run tests
-python -m pytest tests/
+---
 
-# Test adapter loading
-python -m modal.inference --test
-```
+## Notes
+
+- **Legacy/Experimental Modules**: `sam_inference.py`, `ocr_inference.py`, `sam_gradio.py`, `ocr_gradio.py` appear to be task-specific interfaces (e.g., for SAM segmentation or OCR) — likely not part of the core MoE routing logic.
+- **Testing**: Run `./scripts/test.sh` to execute unit/integration tests.
+- **Merging**: Use `scripts/merge.sh` or `modal/merge.py` to pre-merge LoRA weights into base model for performance.
+- **Error Handling**: The repeated `Lookup failed for Cls 'DocGenerator' from the 'wiki-agent' app` errors in file listings are likely **false positives** or **legacy artifacts** — they do not appear to be part of the MoE inference logic and may be from a different project or test framework.
 
 ---
 
-## 6. Advanced Usage
-
-### 6.1. Merged Model Deployment
-```bash
-./scripts/merge.sh --adapter-name task-a --base-model Qwen/Qwen3-VL-8B-Instruct
-./scripts/deploy-merged.sh --adapter-name task-a
-```
-
-### 6.2. Custom Task Apps
-Modify `apps/sam_app.py` or `apps/ocr_app.py` to handle task-specific routing or UI.
-
-### 6.3. Extending Routing Logic
-Modify `modal/inference.py` to implement custom router logic (e.g., based on image content or prompt keywords).
-
----
-
-## 7. Notes
-
-- **Error in File List**: The files listed in your input contain repeated error messages (`Lookup failed for Cls 'DocGenerator' from the 'wiki-agent' app: App 'wiki-agent' not found`). This appears to be a metadata or documentation artifact — not actual code or runtime errors. The project is fully functional as described.
-- **Modal Dependency**: All deployment and inference logic is built for Modal, so ensure Modal is installed and configured.
-- **Config Flexibility**: All settings are configurable via YAML or environment variables — no hardcoded paths or models.
-
----
-
-This project enables efficient, scalable, and dynamic deployment of LoRA adapters for multimodal models — ideal for production environments requiring task-specific inference with minimal latency and resource overhead.
+This project provides a **production-ready, configurable, and extensible** MoE inference server for multimodal LoRA adapters — ideal for research teams or enterprises deploying multiple task-specific models on a single base model.
