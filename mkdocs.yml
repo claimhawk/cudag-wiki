@@ -32,18 +32,18 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Projects:
+      - CUDAG Framework: sl-cudag/index.md
       - Annotator: annotator/index.md
+      - Annotator: sl-annotator/index.md
+      - Desktop Generator: sl-generators-desktop-generator/index.md
+      - MOLE Inference: sl-mole-inference/index.md
+      - MOLE Inference Web: sl-mole-inference-www/index.md
+      - TensorBoard Server: sl-tensorboard-server/index.md
+      - Dataset Viewer: dataset-viewer/index.md
       - Claude Autonomous Code Starter Examples Python Example: claude-autonomous-code-starter-examples-python-example/index.md
       - Claude Autonomous Code Starter Scripts Guardrails: claude-autonomous-code-starter-scripts-guardrails/index.md
       - Claude Autonomous Code Starter Templates Python: claude-autonomous-code-starter-templates-python/index.md
       - Claude Autonomous Code Starter Templates Typescript: claude-autonomous-code-starter-templates-typescript/index.md
-      - Dataset Viewer: dataset-viewer/index.md
-      - Sl Annotator: sl-annotator/index.md
-      - Sl Cudag: sl-cudag/index.md
-      - Sl Desktop Generator: sl-generators-desktop-generator/index.md
-      - Sl Mole Inference: sl-mole-inference/index.md
-      - Sl Mole Inference Www: sl-mole-inference-www/index.md
-      - Sl Tensorboard Server: sl-tensorboard-server/index.md
       - Visualizer Backend: visualizer-backend/index.md
       - Visualizer Docs: visualizer-docs/index.md
       - Visualizer Frontend: visualizer-frontend/index.md
